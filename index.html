@@ -446,5 +446,129 @@
   reveals.forEach(el=>obs.observe(el));
 </script>
 
+<!-- ============================================================
+     Cassie CV Chatbot — 網頁聊天框
+     用法：把這整段貼進你現有網站 HTML 的 </body> 之前。
+     記得把下面的 WORKER_URL 改成你部署後拿到的後端網址。
+     ============================================================ -->
+
+<div id="cv-chat">
+  <button id="cv-chat-toggle" aria-label="Ask about my work">✨ Ask about my work</button>
+
+  <div id="cv-chat-window">
+    <div id="cv-chat-header">
+      <span>Ask about my work</span>
+      <button id="cv-chat-close" aria-label="Close">×</button>
+    </div>
+    <div id="cv-chat-messages">
+      <div class="cv-msg cv-bot">Hi! Ask me anything about Cassie's experience, projects, or background. 你好，可以用中文或英文問我關於 Cassie 的經歷。</div>
+    </div>
+    <form id="cv-chat-form">
+      <input id="cv-chat-input" type="text" placeholder="Type your question…" autocomplete="off" maxlength="2000" />
+      <button type="submit" id="cv-chat-send">Send</button>
+    </form>
+  </div>
+</div>
+
+<style>
+  #cv-chat { position: fixed; bottom: 24px; right: 24px; z-index: 9999; font-family: inherit; }
+  #cv-chat-toggle {
+    background: #4f46e5; color: #fff; border: none; border-radius: 999px;
+    padding: 14px 22px; font-size: 15px; font-weight: 600; cursor: pointer;
+    box-shadow: 0 6px 20px rgba(79,70,229,.35);
+  }
+  #cv-chat-toggle:hover { background: #4338ca; }
+  #cv-chat-window {
+    width: 360px; max-width: calc(100vw - 32px); height: 520px; max-height: calc(100vh - 100px);
+    background: #fff; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,.18);
+    flex-direction: column; overflow: hidden;
+    display: none;
+  }
+  #cv-chat.cv-open #cv-chat-window { display: flex; }
+  #cv-chat.cv-open #cv-chat-toggle { display: none; }
+  #cv-chat-header {
+    background: #14202b; color: #fff; padding: 14px 16px; font-weight: 600;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  #cv-chat-close { background: none; border: none; color: #fff; font-size: 22px; cursor: pointer; line-height: 1; }
+  #cv-chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; background: #f7f8fa; }
+  .cv-msg { padding: 10px 14px; border-radius: 14px; max-width: 85%; font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
+  .cv-bot { background: #fff; color: #1a1a1a; align-self: flex-start; border: 1px solid #e5e7eb; }
+  .cv-user { background: #4f46e5; color: #fff; align-self: flex-end; }
+  .cv-typing { font-style: italic; color: #888; }
+  #cv-chat-form { display: flex; border-top: 1px solid #eee; padding: 10px; gap: 8px; background: #fff; }
+  #cv-chat-input { flex: 1; border: 1px solid #d1d5db; border-radius: 999px; padding: 10px 16px; font-size: 14px; outline: none; }
+  #cv-chat-input:focus { border-color: #4f46e5; }
+  #cv-chat-send { background: #4f46e5; color: #fff; border: none; border-radius: 999px; padding: 0 18px; font-weight: 600; cursor: pointer; }
+  #cv-chat-send:disabled { opacity: .5; cursor: default; }
+</style>
+
+<script>
+(function () {
+  // ⬇⬇⬇ 改成你部署後端後拿到的網址 ⬇⬇⬇
+  const WORKER_URL = "https://cassie-cv.cassie41341341.workers.dev";
+
+  const toggle = document.getElementById("cv-chat-toggle");
+  const windowEl = document.getElementById("cv-chat-window");
+  const closeBtn = document.getElementById("cv-chat-close");
+  const messages = document.getElementById("cv-chat-messages");
+  const form = document.getElementById("cv-chat-form");
+  const input = document.getElementById("cv-chat-input");
+  const sendBtn = document.getElementById("cv-chat-send");
+  const history = [];
+
+  const root = document.getElementById("cv-chat");
+  toggle.addEventListener("click", () => {
+    root.classList.add("cv-open");
+    input.focus();
+  });
+  closeBtn.addEventListener("click", () => {
+    root.classList.remove("cv-open");
+  });
+
+  function addMsg(text, who) {
+    const div = document.createElement("div");
+    div.className = "cv-msg " + (who === "user" ? "cv-user" : "cv-bot");
+    div.textContent = text;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+    return div;
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+
+    addMsg(text, "user");
+    history.push({ role: "user", text });
+    input.value = "";
+    sendBtn.disabled = true;
+
+    const typing = addMsg("…", "bot");
+    typing.classList.add("cv-typing");
+
+    try {
+      const res = await fetch(WORKER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, history: history.slice(0, -1) }),
+      });
+      const data = await res.json();
+      const reply = data.reply || "Sorry, something went wrong. Please email cassie41341341@gmail.com";
+      typing.remove();
+      addMsg(reply, "bot");
+      history.push({ role: "model", text: reply });
+    } catch (err) {
+      typing.remove();
+      addMsg("Sorry, I couldn't connect. Please email cassie41341341@gmail.com", "bot");
+    } finally {
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  });
+})();
+</script>
+
 </body>
 </html>
